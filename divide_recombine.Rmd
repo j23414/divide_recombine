@@ -70,6 +70,14 @@ summary(cars.c$fuelType1)
 summary(cars.c$fuelType2)
 summary(subset(cars.c[,c(31,32,68)], fuelType=='Gasoline or E85'))
 
+library(plyr)
+gastype = cars.c$fuelType
+cars.c$gastype = mapvalues(gastype, from=c("CNG", "Gasoline or natural gas", "Gasoline or propane",
+                          "Regular", "Midgrade", "Premium", "Diesel", "Electricity",
+                          "Premium Gas or Electricity", "Regular Gas and Electricity",
+                          "Gasoline or E85", "Premium or E85"), to = c("Regular", 
+                          "Regular", "Regular", "Regular", "Regular", "Premium", "Diesel",
+                          "Electricity", "Electricity", "Electricity", "E85", "E85"))
 library(ggplot2)
 ```
 
@@ -155,4 +163,43 @@ datadr_prof <- profr(datadr_test())
 system.time({
 dplyr_prof <- profr(dplyr_test())
 })
+```
+
+For problem 3.
+```{r}
+# map expression to emit max petal length for each k/v pair
+maxMap <- expression({
+   for(curMapVal in map.values)
+      collect("max", max(curMapVal$Petal.Length))
+})
+
+# reduce expression to compute global max petal length
+maxReduce <- expression(
+   pre={
+      globalMax <- NULL
+   },
+   reduce={
+      globalMax <- max(c(globalMax, unlist(reduce.values)))
+   },
+   post={
+      collect(reduce.key, globalMax)
+   }
+)
+
+# execute the job
+maxRes <- mrExec(irisDdf,
+   map = maxMap,
+   reduce = maxReduce
+)
+
+# look at the result
+maxRes[["max"]]
+
+# another map expression to emit max petal length
+maxMap2 <- expression(
+   collect(
+      "max",
+      max(sapply(map.values, function(x) max(x$Petal.Length))))
+)
+
 ```

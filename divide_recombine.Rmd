@@ -9,6 +9,87 @@ Read Andee Kaplan's blog on comparing dplyr and datadr
 Run the head to head comparison done by Andee. Do you get similar results?  Using proc.time() might help to do simple timing.
 
 http://andeekaplan.com/2014/03/09/datadr/
+We got the same conclusion: dplyr is faster..
+```{r}
+library(devtools)
+#install_github('datadr','hafen')
+library(datadr)
+data(adult)
+
+## turn adult into a ddf
+(adultDdf<-ddf(adult, update=TRUE))
+names(adultDdf)
+library(ggplot2)
+edTable<-summary(adultDdf)$education$freqTable
+edTable$var
+
+## Names
+names(adultDdf)
+
+## Plot
+library(ggplot2)
+edTable <- summary(adultDdf)$education$freqTable
+edTable$var <- with(edTable, reorder(var, Freq, mean))
+qplot(var, Freq, data = edTable, geom = "point") + coord_flip()
+
+
+datadr_test <- function() {
+    # make a preTransFn to group some education levels
+    edGroups <- function(v) {
+        v$edGroup <- as.character(v$education)
+        v$edGroup[v$edGroup %in% c("1st-4th", "5th-6th")] <- "Some-elementary"
+        v$edGroup[v$edGroup %in% c("7th-8th", "9th")] <- "Some-middle"
+        v$edGroup[v$edGroup %in% c("10th", "11th", "12th")] <- "Some-HS"
+        v
+    }
+    
+    # divide by edGroup and filter out 'Preschool'
+    byEdGroup <- divide(adultDdf, by = "edGroup", preTransFn = edGroups, filterFn = function(x) x$edGroup[1] != 
+        "Preschool", update = TRUE)
+    
+    print(byEdGroup)
+    
+    # tabulate number of people in each education group
+    edGroupTable <- recombine(byEdGroup, apply = nrow, combine = combRbind())
+    print(edGroupTable)
+    
+    # order for plotting
+    edGroupTable$edGroup <- with(edGroupTable, reorder(edGroup, val, mean))
+    print(qplot(edGroup, val, data = edGroupTable, geom = "point") + coord_flip())
+}
+datadr_test()
+
+
+### The same with plyr
+library(dplyr)
+dplyr_test <- function() {
+    byEdGroup_dplyr <- adult %.% mutate(edGroup = ifelse(as.character(education) %in% 
+        c("1st-4th", "5th-6th"), "Some-elementary", ifelse(as.character(education) %in% 
+        c("7th-8th", "9th"), "Some-middle", ifelse(as.character(education) %in% 
+        c("10th", "11th", "12th"), "Some-HS", as.character(education))))) %.% 
+        filter(edGroup != "Preschool") %.% group_by(edGroup)
+    print(byEdGroup_dplyr)
+    
+    edGroupTable_dplyr <- byEdGroup_dplyr %.% summarise(count = n())
+    print(edGroupTable_dplyr)
+    
+    # order for plotting
+    edGroupTable_dplyr$edGroup <- with(edGroupTable_dplyr, reorder(edGroup, 
+        count, mean))
+    print(qplot(edGroup, count, data = edGroupTable_dplyr, geom = "point") + 
+        coord_flip())
+}
+dplyr_test()
+
+library(profr)
+system.time({
+datadr_prof <- profr(datadr_test())
+})
+
+system.time({
+dplyr_prof <- profr(dplyr_test())
+})
+```
 
 Exercise 2
 --------
@@ -21,12 +102,93 @@ It will be best to do some cleaning of the data before trying to fit the model, 
 * Remove missings on cylinders, displ and make into numeric variables
 * Change fuelType into categories "Regular", "Premium", "Diesel", "Electricity", "E85"
 
+```{r}
+cars<-read.csv("vehicles.csv", header=TRUE)
+cars.a <- subset(cars, year<2015)
+cars.b <- subset(cars.a, cylinders!='' & cylinders!='-') # remove records wihtout cylinders data
+cars.c <- subset(cars.b, displ!='' & displ!='-')         # remove records without displ data
+cars.c$cylinders=as.numeric(as.character(cars.c$cylinders)) # convert cylinders to numeric
+cars.c$displ=as.numeric(as.character(cars.c$displ))     # convert displ to numeric
+
+summary(cars.c$fuelType)
+summary(cars.c$fuelType1)
+summary(cars.c$fuelType2)
+summary(subset(cars.c[,c(31,32,68)], fuelType=='Gasoline or E85'))
+
+library(plyr)
+gastype = cars.c$fuelType
+cars.c$gastype = mapvalues(gastype, from=c("CNG", "Gasoline or natural gas", "Gasoline or propane",
+                          "Regular", "Midgrade", "Premium", "Diesel", "Electricity",
+                          "Premium Gas or Electricity", "Regular Gas and Electricity",
+                          "Gasoline or E85", "Premium or E85"), to = c("Regular", 
+                          "Regular", "Regular", "Regular", "Regular", "Premium", "Diesel",
+                          "Electricity", "Electricity", "Electricity", "E85", "E85"))
+
+cars.d = ddf(cars.c)
+time.glm = system.time(glm(UCity ~ UHighway + cylinders + displ + gastype + year, data = cars.c))
+time.drGLM = system.time(drGLM(UCity ~ UHighway + cylinders + displ + gastype + year, data = cars.c))
+time.drBLB = system.time({cars.d = ddf(cars.c, update=T)
+cars.e <- divide(cars.d, by=rrDiv(17000), update=TRUE,postTrans=function(x) 
+      x[,c("UCity", "UHighway", "cylinders", "displ", "gastype", "year")])
+
+recombine(cars.e,
+   apply=drBLB(
+      statistic = function(x, weights)
+         coef(glm(UCity ~ UHighway + cylinders + displ + gastype + year, 
+            data=x, weights = weights)),
+      metric = function(x)
+         quantile(x, c(0.05, 0.95)),
+      R = 100,
+      n = nrow(cars.e)
+   ),
+   combine=combMean()
+)
+
+recombine(
+    data = cars.e,
+    apply = drGLM(UCity ~ UHighway+cylinders+displ+gastype+year),
+    combine = combMeanCoef()
+)})
+
+time.glm
+time.drGLM
+time.drBLB
+```
+
 Exercise 3
 --------
 Modify the MapReduce examples (at http://hafen.github.io/datadr/#mapreduce-examples) to:
 
 Find the make of vehicle that has the lowest mpg
 
+```{r}
+minMap <- expression({
+   for(curMapVal in map.values)
+      collect("min", min(curMapVal$comb08))
+      collect("make", curMapVal[which.min(curMapVal$comb08), "make"])
+})
+
+
+minReduce <- expression(
+   pre={
+      globalMin <- NULL
+   },
+   reduce={
+      globalMin <- unlist(reduce.values)
+   },
+   post={
+      collect(reduce.key, globalMin)
+   }
+)
+
+minRes <- mrExec(cars.d,
+   map = minMap,
+   reduce = minReduce
+)
+
+minRes[["make"]]
+minRes[["min"]]
+```
 Exercise 4
 ---------
 Write a paragraph on:
@@ -34,7 +196,10 @@ Write a paragraph on:
 * And how the data setup might affect the types of operations that can be done efficiently
 
 
-```{r}
+Cleaning data before working with it in any case is important, but especially when working datadr format which is very specific. The ddo and ddf objects are the only objects that many of the datadr functions work well with. If your data isn't clean, it won't be workable. 
+
+<!--
+/```{r}
 # Exercise 1 Andee Kaplan example
 #library(devtools)
 #install_github('datadr','hafen')
@@ -107,7 +272,7 @@ time.drBLB
 
 Guillermo Basulto-Elias
 We got the same conclusion: dplyr is faster..
-```{r}
+/```{r}
 # Exercise 1 Andee Kaplan example
 library(devtools)
 #install_github('datadr','hafen')
@@ -190,7 +355,7 @@ dplyr_prof <- profr(dplyr_test())
 ```
 
 For problem 3.
-```{r}
+/```{r}
 # map expression to emit max petal length for each k/v pair
 minMap <- expression({
    for(curMapVal in map.values)
@@ -226,7 +391,7 @@ minRes[["min"]]
 
 Cleaning data before working with it in any case is important, but especially when working datadr format which is very specific. The ddo and ddf objects are the only objects that many of the datadr functions work well with. If your data isn't clean, it won't be workable. 
 
-
+-->
 
 
 

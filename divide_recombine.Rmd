@@ -1,0 +1,23 @@
+Exploring the Effect of Divide Recombine
+========================================================
+Team: Daniel Bero (dbero), Jennifer Chang (jenchang), Guillermo Basulto-Elias (basulto) 
+
+Exercise 1
+--------
+Read Andee Kaplan's blog on comparing dplyr and datadr
+Run the head to head comparison done by Andee. Do you get similar results?  Using proc.time() might help to do simple timing.
+
+Daniel Bero
+```{r}
+
+```
+
+Jennifer Chang
+```{r}
+plot(cars)
+```
+
+Guillermo Basulto-Elias
+```{r}
+
+```

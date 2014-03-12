@@ -74,6 +74,85 @@ library(ggplot2)
 ```
 
 Guillermo Basulto-Elias
+We got the same conclusion: dplyr is faster.
 ```{r}
+# Exercise 1 Andee Kaplan example
+library(devtools)
+#install_github('datadr','hafen')
+library(datadr)
+data(adult)
 
+## turn adult into a ddf
+(adultDdf<-ddf(adult, update=TRUE))
+names(adultDdf)
+library(ggplot2)
+edTable<-summary(adultDdf)$education$freqTable
+edTable$var
+
+## Names
+names(adultDdf)
+
+## Plot
+library(ggplot2)
+edTable <- summary(adultDdf)$education$freqTable
+edTable$var <- with(edTable, reorder(var, Freq, mean))
+qplot(var, Freq, data = edTable, geom = "point") + coord_flip()
+
+
+datadr_test <- function() {
+    # make a preTransFn to group some education levels
+    edGroups <- function(v) {
+        v$edGroup <- as.character(v$education)
+        v$edGroup[v$edGroup %in% c("1st-4th", "5th-6th")] <- "Some-elementary"
+        v$edGroup[v$edGroup %in% c("7th-8th", "9th")] <- "Some-middle"
+        v$edGroup[v$edGroup %in% c("10th", "11th", "12th")] <- "Some-HS"
+        v
+    }
+    
+    # divide by edGroup and filter out 'Preschool'
+    byEdGroup <- divide(adultDdf, by = "edGroup", preTransFn = edGroups, filterFn = function(x) x$edGroup[1] != 
+        "Preschool", update = TRUE)
+    
+    print(byEdGroup)
+    
+    # tabulate number of people in each education group
+    edGroupTable <- recombine(byEdGroup, apply = nrow, combine = combRbind())
+    print(edGroupTable)
+    
+    # order for plotting
+    edGroupTable$edGroup <- with(edGroupTable, reorder(edGroup, val, mean))
+    print(qplot(edGroup, val, data = edGroupTable, geom = "point") + coord_flip())
+}
+datadr_test()
+
+
+### The same with plyr
+library(dplyr)
+dplyr_test <- function() {
+    byEdGroup_dplyr <- adult %.% mutate(edGroup = ifelse(as.character(education) %in% 
+        c("1st-4th", "5th-6th"), "Some-elementary", ifelse(as.character(education) %in% 
+        c("7th-8th", "9th"), "Some-middle", ifelse(as.character(education) %in% 
+        c("10th", "11th", "12th"), "Some-HS", as.character(education))))) %.% 
+        filter(edGroup != "Preschool") %.% group_by(edGroup)
+    print(byEdGroup_dplyr)
+    
+    edGroupTable_dplyr <- byEdGroup_dplyr %.% summarise(count = n())
+    print(edGroupTable_dplyr)
+    
+    # order for plotting
+    edGroupTable_dplyr$edGroup <- with(edGroupTable_dplyr, reorder(edGroup, 
+        count, mean))
+    print(qplot(edGroup, count, data = edGroupTable_dplyr, geom = "point") + 
+        coord_flip())
+}
+dplyr_test()
+
+library(profr)
+system.time({
+datadr_prof <- profr(datadr_test())
+})
+
+system.time({
+dplyr_prof <- profr(dplyr_test())
+})
 ```

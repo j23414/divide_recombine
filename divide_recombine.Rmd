@@ -5,7 +5,33 @@ Team: Daniel Bero (dbero), Jennifer Chang (jenchang), Guillermo Basulto-Elias (b
 Exercise 1
 --------
 Read Andee Kaplan's blog on comparing dplyr and datadr
+
 Run the head to head comparison done by Andee. Do you get similar results?  Using proc.time() might help to do simple timing.
+
+http://andeekaplan.com/2014/03/09/datadr/
+
+Exercise 2
+--------
+Download the vehicle data from [http://www.fueleconomy.gov/feg/ws/index.shtml]
+
+Your goal here is to compare fitting a glm of city mpg on highway mpg, cylinders, disp, fuelType and year using the full data, against drGLM() and drBLB().  Examine the time taken to compute, and the values of the model estimates.
+
+It will be best to do some cleaning of the data before trying to fit the model, or making the ddf.
+* Remove cars listed as year = 2015
+* Remove missings on cylinders, displ and make into numeric variables
+* Change fuelType into categories "Regular", "Premium", "Diesel", "Electricity", "E85"
+
+Exercise 3
+--------
+Modify the MapReduce examples (at http://hafen.github.io/datadr/#mapreduce-examples) to:
+
+Find the make of vehicle that has the lowest mpg
+
+Exercise 4
+---------
+Write a paragraph on:
+* How data cleaning prior to constructing the distributed data objects might be important.
+* And how the data setup might affect the types of operations that can be done efficiently
 
 Daniel Bero
 ```{r}
@@ -14,7 +40,37 @@ Daniel Bero
 
 Jennifer Chang
 ```{r}
-plot(cars)
+# Exercise 1 Andee Kaplan example
+#library(devtools)
+#install_github('datadr','hafen')
+#library(datadr)
+#data(adult)
+
+# turn adult into a ddf
+#(adultDdf<-ddf(adult, update=TRUE))
+#names(adultDdf)
+#library(ggplot2)
+#edTable<-summary(adultDdf)$education$freqTable
+#edTable$var
+
+# Exercise 2 Cars
+cars<-read.csv("vehicles.csv", header=TRUE)
+cars.a <- subset(cars, year<2015)
+cars.b <- subset(cars.a, cylinders!='' & cylinders!='-') # remove records wihtout cylinders data
+cars.c <- subset(cars.b, displ!='' & displ!='-')         # remove records without displ data
+#head(cars.c$cylinders)
+cars.c$cylinders=as.numeric(as.character(cars.c$cylinders)) # convert cylinders to numeric
+#head(cars.c$cylinders)
+#head(cars.c$displ)
+cars.c$displ=as.numeric(as.character(cars.c$displ))     # convert displ to numeric
+#head(cars.c$displ)
+
+summary(cars.c$fuelType)
+summary(cars.c$fuelType1)
+summary(cars.c$fuelType2)
+summary(subset(cars.c[,c(31,32,68)], fuelType=='Gasoline or E85'))
+
+library(ggplot2)
 ```
 
 Guillermo Basulto-Elias

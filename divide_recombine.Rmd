@@ -33,48 +33,7 @@ Write a paragraph on:
 * How data cleaning prior to constructing the distributed data objects might be important.
 * And how the data setup might affect the types of operations that can be done efficiently
 
-Daniel Bero
-```{r}
-library(plyr)
-gastype = cars.c$fuelType
-cars.c$gastype = mapvalues(gastype, from=c("CNG", "Gasoline or natural gas", "Gasoline or propane",
-                          "Regular", "Midgrade", "Premium", "Diesel", "Electricity",
-                          "Premium Gas or Electricity", "Regular Gas and Electricity",
-                          "Gasoline or E85", "Premium or E85"), to = c("Regular", 
-                          "Regular", "Regular", "Regular", "Regular", "Premium", "Diesel",
-                          "Electricity", "Electricity", "Electricity", "E85", "E85"))
 
-time.glm = system.time(glm(UCity ~ UHighway + cylinders + displ + gastype + year, data = cars.c))
-time.drGLM = system.time(drGLM(UCity ~ UHighway + cylinders + displ + gastype + year, data = cars.c))
-time.drBLB = system.time({cars.d = ddf(cars.c, update=T)
-cars.e <- divide(cars.d, by=rrDiv(17000), update=TRUE,postTrans=function(x) 
-      x[,c("UCity", "UHighway", "cylinders", "displ", "gastype", "year")])
-
-recombine(cars.e,
-   apply=drBLB(
-      statistic = function(x, weights)
-         coef(glm(UCity ~ UHighway + cylinders + displ + gastype + year, 
-            data=x, weights = weights)),
-      metric = function(x)
-         quantile(x, c(0.05, 0.95)),
-      R = 100,
-      n = nrow(cars.e)
-   ),
-   combine=combMean()
-)
-
-recombine(
-    data = cars.e,
-    apply = drGLM(UCity ~ UHighway+cylinders+displ+gastype+year),
-    combine = combMeanCoef()
-)})
-
-time.glm
-time.drGLM
-time.drBLB
-```
-
-Jennifer Chang
 ```{r}
 # Exercise 1 Andee Kaplan example
 #library(devtools)
@@ -114,7 +73,36 @@ cars.c$gastype = mapvalues(gastype, from=c("CNG", "Gasoline or natural gas", "Ga
                           "Gasoline or E85", "Premium or E85"), to = c("Regular", 
                           "Regular", "Regular", "Regular", "Regular", "Premium", "Diesel",
                           "Electricity", "Electricity", "Electricity", "E85", "E85"))
-library(ggplot2)
+
+cars.d = ddf(cars.c)
+time.glm = system.time(glm(UCity ~ UHighway + cylinders + displ + gastype + year, data = cars.c))
+time.drGLM = system.time(drGLM(UCity ~ UHighway + cylinders + displ + gastype + year, data = cars.c))
+time.drBLB = system.time({cars.d = ddf(cars.c, update=T)
+cars.e <- divide(cars.d, by=rrDiv(17000), update=TRUE,postTrans=function(x) 
+      x[,c("UCity", "UHighway", "cylinders", "displ", "gastype", "year")])
+
+recombine(cars.e,
+   apply=drBLB(
+      statistic = function(x, weights)
+         coef(glm(UCity ~ UHighway + cylinders + displ + gastype + year, 
+            data=x, weights = weights)),
+      metric = function(x)
+         quantile(x, c(0.05, 0.95)),
+      R = 100,
+      n = nrow(cars.e)
+   ),
+   combine=combMean()
+)
+
+recombine(
+    data = cars.e,
+    apply = drGLM(UCity ~ UHighway+cylinders+displ+gastype+year),
+    combine = combMeanCoef()
+)})
+
+time.glm
+time.drGLM
+time.drBLB
 ```
 
 Guillermo Basulto-Elias
@@ -204,38 +192,42 @@ dplyr_prof <- profr(dplyr_test())
 For problem 3.
 ```{r}
 # map expression to emit max petal length for each k/v pair
-maxMap <- expression({
+minMap <- expression({
    for(curMapVal in map.values)
-      collect("max", max(curMapVal$Petal.Length))
+      collect("min", min(curMapVal$comb08))
+      collect("make", curMapVal[which.min(curMapVal$comb08), "make"])
 })
 
-# reduce expression to compute global max petal length
-maxReduce <- expression(
+
+minReduce <- expression(
    pre={
-      globalMax <- NULL
+      globalMin <- NULL
    },
    reduce={
-      globalMax <- max(c(globalMax, unlist(reduce.values)))
+      globalMin <- unlist(reduce.values)
    },
    post={
-      collect(reduce.key, globalMax)
+      collect(reduce.key, globalMin)
    }
 )
 
-# execute the job
-maxRes <- mrExec(irisDdf,
-   map = maxMap,
-   reduce = maxReduce
+minRes <- mrExec(cars.d,
+   map = minMap,
+   reduce = minReduce
 )
 
-# look at the result
-maxRes[["max"]]
+minRes[["make"]]
+minRes[["min"]]
 
-# another map expression to emit max petal length
-maxMap2 <- expression(
-   collect(
-      "max",
-      max(sapply(map.values, function(x) max(x$Petal.Length))))
-)
+
 
 ```
+
+
+Cleaning data before working with it in any case is important, but especially when working datadr format which is very specific. The ddo and ddf objects are the only objects that many of the datadr functions work well with. If your data isn't clean, it won't be workable. 
+
+
+
+
+
+

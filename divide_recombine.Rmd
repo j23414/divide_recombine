@@ -1,4 +1,4 @@
-Exploring the Effect of Divide Recombine
+sExploring the Effect of Divide Recombine
 ========================================================
 Team: Daniel Bero (dbero), Jennifer Chang (jenchang), Guillermo Basulto-Elias (basulto) 
 

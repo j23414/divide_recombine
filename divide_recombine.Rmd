@@ -1,4 +1,4 @@
-sExploring the Effect of Divide Recombine
+Exploring the Effect of Divide Recombine
 ========================================================
 Team: Daniel Bero (dbero), Jennifer Chang (jenchang), Guillermo Basulto-Elias (basulto) 
 
@@ -35,7 +35,43 @@ Write a paragraph on:
 
 Daniel Bero
 ```{r}
+library(plyr)
+gastype = cars.c$fuelType
+cars.c$gastype = mapvalues(gastype, from=c("CNG", "Gasoline or natural gas", "Gasoline or propane",
+                          "Regular", "Midgrade", "Premium", "Diesel", "Electricity",
+                          "Premium Gas or Electricity", "Regular Gas and Electricity",
+                          "Gasoline or E85", "Premium or E85"), to = c("Regular", 
+                          "Regular", "Regular", "Regular", "Regular", "Premium", "Diesel",
+                          "Electricity", "Electricity", "Electricity", "E85", "E85"))
 
+time.glm = system.time(glm(UCity ~ UHighway + cylinders + displ + gastype + year, data = cars.c))
+time.drGLM = system.time(drGLM(UCity ~ UHighway + cylinders + displ + gastype + year, data = cars.c))
+time.drBLB = system.time({cars.d = ddf(cars.c, update=T)
+cars.e <- divide(cars.d, by=rrDiv(17000), update=TRUE,postTrans=function(x) 
+      x[,c("UCity", "UHighway", "cylinders", "displ", "gastype", "year")])
+
+recombine(cars.e,
+   apply=drBLB(
+      statistic = function(x, weights)
+         coef(glm(UCity ~ UHighway + cylinders + displ + gastype + year, 
+            data=x, weights = weights)),
+      metric = function(x)
+         quantile(x, c(0.05, 0.95)),
+      R = 100,
+      n = nrow(cars.e)
+   ),
+   combine=combMean()
+)
+
+recombine(
+    data = cars.e,
+    apply = drGLM(UCity ~ UHighway+cylinders+displ+gastype+year),
+    combine = combMeanCoef()
+)})
+
+time.glm
+time.drGLM
+time.drBLB
 ```
 
 Jennifer Chang

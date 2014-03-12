@@ -74,7 +74,7 @@ library(ggplot2)
 ```
 
 Guillermo Basulto-Elias
-We got the same conclusion: dplyr is faster.
+We got the same conclusion: dplyr is faster..
 ```{r}
 # Exercise 1 Andee Kaplan example
 library(devtools)

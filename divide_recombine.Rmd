@@ -10,7 +10,7 @@ Run the head to head comparison done by Andee. Do you get similar results?  Usin
 
 * http://andeekaplan.com/2014/03/09/datadr/
 
-We got the same conclusion: dplyr is faster..
+After running Andee's code, we conclude that ``dplyr`` takes at most half of the time that ``tabledr``. This agrees with Andee's conclusion.
 ```{r}
 library(devtools)
 install_github('datadr','hafen')
@@ -103,7 +103,7 @@ It will be best to do some cleaning of the data before trying to fit the model, 
 * Change fuelType into categories "Regular", "Premium", "Diesel", "Electricity", "E85"
 
 ```{r}
-cars<-read.csv("vehicles.csv", header=TRUE)
+cars<-read.csv("../data/vehicles.csv", header=TRUE)
 cars.a <- subset(cars, year<2015)
 cars.b <- subset(cars.a, cylinders!='' & cylinders!='-') # remove records wihtout cylinders data
 cars.c <- subset(cars.b, displ!='' & displ!='-')         # remove records without displ data
@@ -150,11 +150,13 @@ time.drGLM
 time.drBLB
 ```
 
+As we can see, the GLM from ``tabledr`` is almost immediate, while the boostrap function in ``tabledr`` take a considerable amount of time.
+
 Exercise 3
 --------
 Modify the MapReduce examples (at http://hafen.github.io/datadr/#mapreduce-examples) to:
 
-Find the make of vehicle that has the lowest mpg
+Find the make of vehicle that has the lowest mpg.
 
 ```{r}
 minMap <- expression({
@@ -184,6 +186,7 @@ minRes <- mrExec(cars.d,
 minRes[["make"]]
 minRes[["min"]]
 ```
+
 Exercise 4
 ---------
 Write a paragraph on:
@@ -191,7 +194,9 @@ Write a paragraph on:
 * And how the data setup might affect the types of operations that can be done efficiently
 
 
-Cleaning data before working with it in any case is important, but especially when working datadr format which is very specific. The ddo and ddf objects are the only objects that many of the datadr functions work well with. If your data isn't clean, it won't be workable. 
+Cleaning data before working with it in any case is important, but especially when working datadr format which is very specific. 
+
+The ddo and ddf objects are the only objects that many of the datadr functions work well with. If your data isn't clean, it won't be workable. 
 
 <!-- Anything after this is commented out ==================
 /```{r}

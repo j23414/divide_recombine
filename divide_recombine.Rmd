@@ -355,7 +355,7 @@ dplyr_prof <- profr(dplyr_test())
 ```
 
 For problem 3.
-/```{r}
+```{r}
 # map expression to emit max petal length for each k/v pair
 minMap <- expression({
    for(curMapVal in map.values)
